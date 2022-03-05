@@ -9,6 +9,7 @@ const adminController = require('../../controllers/admin-controllers')
 const userController = require('../../controllers/user-controllers')
 const tweetController = require('../../controllers/tweet-controllers')
 const replyController = require('../../controllers/reply-contoller')
+const chatroomController = require('../../controllers/chatroom-controllers')
 
 const { authenticated, authenticatedAdmin } = require('../../middleware/api-auth')
 const upload = require('../../middleware/multer')
@@ -40,6 +41,9 @@ router.post('/tweets/:tweet_id/unlike', authenticated, tweetController.removeLik
 router.get('/tweets/:tweet_id', authenticated, tweetController.getTweet)
 router.get('/tweets', authenticated, tweetController.getTweets)
 router.post('/tweets', authenticated, tweetController.postTweet)
+
+router.get('/chatroom', authenticated, chatroomController.getChatroom)
+router.post('/chatroom', authenticated, chatroomController.postChatroom)
 
 router.put('/replies/:reply_id', authenticated, replyController.putReply)
 router.delete('replies/:reply_id', authenticated, replyController.deleteReply)
