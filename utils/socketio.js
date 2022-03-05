@@ -1,5 +1,4 @@
-const { User, Chatroom } = require("../models");
-
+const { User, Chatroom, PrivateChat } = require("../models");
 let onlineUser = [];
 
 module.exports = (server) => {
@@ -69,9 +68,9 @@ module.exports = (server) => {
           UserId: senderId,
           content,
         });
-        const { id } = chatroom;
         chatroom = chatroom.toJSON();
-        chatroom = await chatroom.findByPk(id, {
+        const { id } = chatroom;
+        message = await Chatroom.findByPk(id, {
           raw: true,
           nest: true,
           include: [
@@ -83,7 +82,7 @@ module.exports = (server) => {
         });
 
         // 傳新訊息給所有人
-        io.sockets.emit("newMessage", crMsg);
+        io.sockets.emit("newMessage", message);
       } catch (err) {
         console.log(err);
       }
@@ -100,5 +99,71 @@ module.exports = (server) => {
     socket.on("disconnect", () => {
       console.log("disconnected");
     });
+
+
+    // ---privateChat---
+    socket.on("privateChat-join", async (data) => {
+      try {
+        const { sendId, receiveId } = data;
+        const roomId = [sendId, receiveId].sort().join('-')
+        socket.join(roomId);
+
+        const historyMsgs = await PrivateChat.findAll({
+          where: {
+            $or: [
+              { sendId: sendId },
+              { sendId: receiveId }
+            ]
+          },
+          raw: true,
+          nest: true,
+          include: [
+            {
+              model: User,
+              attributes: ["id", "name", "account", "avatar"]
+            },
+          ],
+          order: [["createdAt", "ASC"]],
+        });
+
+        io.to(socket.id).emit('privateChat-room-history-message', historyMsgs);
+      } catch (err) {
+        console.error(err.message)
+      }
+    });
+
+    socket.on("privateChat-room-send-message", async (data) => {
+      try {
+        const { sendId, receiveId, content } = data;
+        const roomId = [sendId, receiveId].sort().join('-');
+
+        // 新訊息放進資料庫
+        const privateChat = await PrivateChat.create({
+          content,
+          sendId,
+          receiveId,
+        });
+
+        privateChat = privateChat.toJSON();
+        const { id } = privateChat;
+        message = await PrivateChat.findByPk(id, {
+          raw: true,
+          nest: true,
+          include: [
+            {
+              model: User,
+              as: 'sendId',
+              attributes: ["id", "name", "account", "avatar"],
+            },
+          ],
+        });
+
+        io.to(roomId).emit('privateChat-room-new-message', message);
+      } catch (err) {
+        console.error(err.message)
+      }
+    })
+
+
   });
 };
