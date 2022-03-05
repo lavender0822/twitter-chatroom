@@ -1,18 +1,17 @@
 const { User, Chatroom } = require("../models");
 
-let numUsers = 0;
 let onlineUser = [];
 
 module.exports = (server) => {
   const io = require("socket.io")(server, {
-      cors: {
-        origin: ['http://localhost:8080'],
-        methods: ['GET', 'POST'],
-        transports: ['websocket', 'polling'],
-        credentials: true
-      },
-      allowEIO3: true
-    })
+    cors: {
+      origin: ['http://localhost:8080'],
+      methods: ['GET', 'POST'],
+      transports: ['websocket', 'polling'],
+      credentials: true
+    },
+    allowEIO3: true
+  })
 
   // 連線錯誤監聽
   io.on("connect_error", (err, next) => {
@@ -36,9 +35,8 @@ module.exports = (server) => {
           onlineUser.push(user);
         }
 
-        ++numUsers;
-        // 給自己發送在線人數與名單
-        socket.emit("onlineUser", { numUsers, onlineUser });
+        // 發送在線人數與名單
+        socket.emit("onlineUser", { numUsers: onlineUser.length, onlineUser });
         // 廣播
         socket.broadcast.emit("userJoin", socket.user);
 
@@ -65,10 +63,10 @@ module.exports = (server) => {
         const senderId = socket.user.id;
         if (!senderId) return;
 
-        const { content } = msg;
+        const { content } = crMsg;
         // 新訊息放進資料庫
         let chatroom = await Chatroom.create({
-          UserId,
+          UserId: senderId,
           content,
         });
         const { id } = chatroom;
@@ -85,7 +83,7 @@ module.exports = (server) => {
         });
 
         // 傳新訊息給所有人
-        io.sockets.emit("newMessage", message);
+        io.sockets.emit("newMessage", crMsg);
       } catch (err) {
         console.log(err);
       }
