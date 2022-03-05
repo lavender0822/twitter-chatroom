@@ -4,7 +4,15 @@ let numUsers = 0;
 let onlineUser = [];
 
 module.exports = (server) => {
-  const io = require("socket.io")(server);
+  const io = require("socket.io")(server, {
+      cors: {
+        origin: ['http://localhost:8080'],
+        methods: ['GET', 'POST'],
+        transports: ['websocket', 'polling'],
+        credentials: true
+      },
+      allowEIO3: true
+    })
 
   // 連線錯誤監聽
   io.on("connect_error", (err, next) => {
