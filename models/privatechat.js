@@ -3,7 +3,8 @@ module.exports = (sequelize, DataTypes) => {
   const PrivateChat = sequelize.define('PrivateChat', {
     content: DataTypes.STRING,
     sendId: DataTypes.INTEGER,
-    receiveId: DataTypes.INTEGER
+    receiveId: DataTypes.INTEGER,
+    isRead: DataTypes.BOOLEAN,
   }, {
     sequelize,
     modelName: 'PrivateChat',

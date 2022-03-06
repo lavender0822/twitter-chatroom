@@ -1,5 +1,6 @@
 const { User, Chatroom, PrivateChat } = require("../models");
 let onlineUser = [];
+let rooms = []
 
 module.exports = (server) => {
   const io = require("socket.io")(server, {
@@ -98,16 +99,39 @@ module.exports = (server) => {
     });
 
     socket.on("disconnect", () => {
+      if (socket.roomId) {
+        rooms[socket.roomId] = rooms[socket.roomId].filter((user) => user !== socket.sendId)
+      }
       console.log("disconnected");
     });
 
 
     // ---privateChat---
+    socket.on("privateChat-leave", async (data) => {
+      const { sendId, receiveId } = data;
+      const roomId = [sendId, receiveId].sort().join('-')
+      socket.sendId = sendId
+      socket.leave(roomId)
+      if (rooms[roomId]) {
+        rooms[roomId] = rooms[roomId].filter((user) => user !== sendId)
+      }
+      console.log('rooms[roomId]=>', rooms[roomId])
+    })
+
     socket.on("privateChat-join", async (data) => {
       try {
         const { sendId, receiveId } = data;
         const roomId = [sendId, receiveId].sort().join('-')
-        socket.join(roomId);
+        socket.sendId = sendId
+        socket.roomId = roomId
+
+        socket.join(roomId)
+        if (rooms[roomId]) {
+          rooms[roomId].push(sendId)
+        } else {
+          rooms[roomId] = [sendId]
+        }
+        console.log('rooms[roomId]=>', rooms[roomId])
 
         const historyMsgs = await PrivateChat.findAll({
           where: {
@@ -127,6 +151,18 @@ module.exports = (server) => {
           order: [["createdAt", "ASC"]],
         });
 
+        await PrivateChat.update({
+          isRead: true
+        }, {
+          where: {
+            $and: [
+              { sendId: receiveId },
+              { receiveId: sendId },
+              { isRead: false },
+            ]
+          }
+        })
+
         io.to(socket.id).emit('privateChat-room-history-message', historyMsgs);
       } catch (err) {
         console.error(err.message)
@@ -138,12 +174,20 @@ module.exports = (server) => {
         const { sendId, receiveId, content } = data;
         const roomId = [sendId, receiveId].sort().join('-');
 
+        let isRead = false
+
+        if (rooms[roomId].includes(receiveId)) {
+          isRead = true
+        }
+
         // 新訊息放進資料庫
         let privateChat = await PrivateChat.create({
           content,
           sendId,
           receiveId,
+          isRead
         });
+        
 
         privateChat = privateChat.toJSON();
         const { id } = privateChat;
@@ -160,6 +204,7 @@ module.exports = (server) => {
 
         io.to(roomId).emit('privateChat-room-new-message', message);
         io.emit(`privateChat-new-message-notification-${receiveId}`, message)
+
       } catch (err) {
         console.error(err.message)
       }
