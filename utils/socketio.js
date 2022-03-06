@@ -47,7 +47,7 @@ module.exports = (server) => {
           ],
           order: [["createdAt", "ASC"]],
         });
-        io.to(socket.id).emit("historyMessage", crMsgs);
+        socket.emit("historyMessage", crMsgs);
       } catch (err) {
         next(err);
       }
