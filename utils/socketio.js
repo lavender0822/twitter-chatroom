@@ -1,18 +1,16 @@
-const { User, Chatroom } = require("../models");
-
-let numUsers = 0;
+const { User, Chatroom, PrivateChat } = require("../models");
 let onlineUser = [];
 
 module.exports = (server) => {
   const io = require("socket.io")(server, {
-      cors: {
-        origin: ['http://localhost:8080'],
-        methods: ['GET', 'POST'],
-        transports: ['websocket', 'polling'],
-        credentials: true
-      },
-      allowEIO3: true
-    })
+    cors: {
+      origin: ['http://localhost:8080'],
+      methods: ['GET', 'POST'],
+      transports: ['websocket', 'polling'],
+      credentials: true
+    },
+    allowEIO3: true
+  })
 
   // 連線錯誤監聽
   io.on("connect_error", (err, next) => {
@@ -36,9 +34,8 @@ module.exports = (server) => {
           onlineUser.push(user);
         }
 
-        ++numUsers;
-        // 給自己發送在線人數與名單
-        socket.emit("onlineUser", { numUsers, onlineUser });
+        // 發送在線人數與名單
+        socket.emit("onlineUser", { numUsers: onlineUser.length, onlineUser });
         // 廣播
         socket.broadcast.emit("userJoin", socket.user);
 
@@ -68,12 +65,12 @@ module.exports = (server) => {
         const { content } = crMsg;
         // 新訊息放進資料庫
         let chatroom = await Chatroom.create({
-          UserId,
+          UserId: senderId,
           content,
         });
-        const { id } = chatroom;
         chatroom = chatroom.toJSON();
-        chatroom = await chatroom.findByPk(id, {
+        const { id } = chatroom;
+        message = await Chatroom.findByPk(id, {
           raw: true,
           nest: true,
           include: [
@@ -102,5 +99,71 @@ module.exports = (server) => {
     socket.on("disconnect", () => {
       console.log("disconnected");
     });
+
+
+    // ---privateChat---
+    socket.on("privateChat-join", async (data) => {
+      try {
+        const { sendId, receiveId } = data;
+        const roomId = [sendId, receiveId].sort().join('-')
+        socket.join(roomId);
+
+        const historyMsgs = await PrivateChat.findAll({
+          where: {
+            $or: [
+              { sendId: sendId },
+              { sendId: receiveId }
+            ]
+          },
+          raw: true,
+          nest: true,
+          include: [
+            {
+              model: User,
+              attributes: ["id", "name", "account", "avatar"]
+            },
+          ],
+          order: [["createdAt", "ASC"]],
+        });
+
+        io.to(socket.id).emit('privateChat-room-history-message', historyMsgs);
+      } catch (err) {
+        console.error(err.message)
+      }
+    });
+
+    socket.on("privateChat-room-send-message", async (data) => {
+      try {
+        const { sendId, receiveId, content } = data;
+        const roomId = [sendId, receiveId].sort().join('-');
+
+        // 新訊息放進資料庫
+        const privateChat = await PrivateChat.create({
+          content,
+          sendId,
+          receiveId,
+        });
+
+        privateChat = privateChat.toJSON();
+        const { id } = privateChat;
+        message = await PrivateChat.findByPk(id, {
+          raw: true,
+          nest: true,
+          include: [
+            {
+              model: User,
+              as: 'sendId',
+              attributes: ["id", "name", "account", "avatar"],
+            },
+          ],
+        });
+
+        io.to(roomId).emit('privateChat-room-new-message', message);
+      } catch (err) {
+        console.error(err.message)
+      }
+    })
+
+
   });
 };
