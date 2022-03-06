@@ -4,7 +4,7 @@ let onlineUser = [];
 module.exports = (server) => {
   const io = require("socket.io")(server, {
     cors: {
-      origin: ['http://localhost:8080'],
+      origin: ['http://localhost:8080', 'https://kuochiuhsiang.github.io'],
       methods: ['GET', 'POST'],
       transports: ['websocket', 'polling'],
       credentials: true
@@ -65,7 +65,7 @@ module.exports = (server) => {
         const { content } = crMsg;
         // 新訊息放進資料庫
         let chatroom = await Chatroom.create({
-          UserId: senderId,
+          UserId,
           content,
         });
         chatroom = chatroom.toJSON();
