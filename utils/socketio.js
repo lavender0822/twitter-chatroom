@@ -139,7 +139,7 @@ module.exports = (server) => {
         const roomId = [sendId, receiveId].sort().join('-');
 
         // 新訊息放進資料庫
-        const privateChat = await PrivateChat.create({
+        let privateChat = await PrivateChat.create({
           content,
           sendId,
           receiveId,
@@ -147,19 +147,19 @@ module.exports = (server) => {
 
         privateChat = privateChat.toJSON();
         const { id } = privateChat;
-        message = await PrivateChat.findByPk(id, {
+        const message = await PrivateChat.findByPk(id, {
           raw: true,
           nest: true,
           include: [
             {
               model: User,
-              as: 'sendId',
               attributes: ["id", "name", "account", "avatar"],
             },
           ],
         });
 
         io.to(roomId).emit('privateChat-room-new-message', message);
+        io.emit(`privateChat-new-message-notification-${receiveId}`, message)
       } catch (err) {
         console.error(err.message)
       }
