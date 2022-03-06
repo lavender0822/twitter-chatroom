@@ -62,10 +62,10 @@ module.exports = (server) => {
         // 前端傳來的訊息為空 return
         if (!crMsg.content) return;
         // 取得 sender id
-        const senderId = socket.user.id;
-        if (!senderId) return;
+        const UserId = socket.user.id;
+        if (!UserId) return;
 
-        const { content } = msg;
+        const { content } = crMsg;
         // 新訊息放進資料庫
         let chatroom = await Chatroom.create({
           UserId,
@@ -85,7 +85,7 @@ module.exports = (server) => {
         });
 
         // 傳新訊息給所有人
-        io.sockets.emit("newMessage", message);
+        io.sockets.emit("newMessage", chatroom);
       } catch (err) {
         console.log(err);
       }
