@@ -92,10 +92,11 @@ module.exports = (server) => {
     socket.on("leavingChatroom", () => {
       // 離開時減少聊天室人數並發送給網頁
       onlineUser = onlineUser.filter((user) => user.id !== socket.user.id);
-      io.emit("onlineUser", onlineUser);
-      io.emit("userLeave", socket.user);
+      io.sockets.emit("onlineUser", onlineUser);
+      io.sockets.emit("userLeave", socket.user);
       console.log("a user left chatroom");
     });
+
     socket.on("disconnect", () => {
       console.log("disconnected");
     });
