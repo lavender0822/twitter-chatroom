@@ -70,7 +70,7 @@ module.exports = (server) => {
         });
         chatroom = chatroom.toJSON();
         const { id } = chatroom;
-        message = await Chatroom.findByPk(id, {
+        chatroom = await Chatroom.findByPk(id, {
           raw: true,
           nest: true,
           include: [
